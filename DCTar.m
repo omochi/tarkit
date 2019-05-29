@@ -216,7 +216,6 @@ static const char template_header[] = {
         memset(&block, '\0', TAR_BLOCK_SIZE*2);
         [fileHandle writeData:[NSData dataWithBytes:block length:TAR_BLOCK_SIZE*2]];
         [fileHandle closeFile];
-        free(block);
         return YES;
     }
     if(error)
@@ -369,7 +368,6 @@ static const char template_header[] = {
     memcpy(&nameBytes, [self dataForObject:object inRange:NSMakeRange((uInt)offset + TAR_NAME_POSITION, TAR_NAME_SIZE)
                                 orLocation:offset + TAR_NAME_POSITION andLength:TAR_NAME_SIZE].bytes, TAR_NAME_SIZE);
     NSString *name = [NSString stringWithCString:nameBytes encoding:NSASCIIStringEncoding];
-    free(nameBytes);
     return name;
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -381,7 +379,6 @@ static const char template_header[] = {
     memcpy(&sizeBytes, [self dataForObject:object inRange:NSMakeRange((uInt)offset + TAR_SIZE_POSITION, TAR_SIZE_SIZE)
                                 orLocation:offset + TAR_SIZE_POSITION andLength:TAR_SIZE_SIZE].bytes, TAR_SIZE_SIZE);
     unsigned long long size = strtol(sizeBytes, NULL, 8); // Size is an octal number, convert to decimal
-    free(sizeBytes);
     return size;
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -503,11 +500,6 @@ static const char template_header[] = {
     buffer[USTAR_checksum_offset + 6] = '\0';
     format_octal(checksum, buffer + USTAR_checksum_offset, 6);
     [outputFileHandle writeData:[NSData dataWithBytes:buffer length:TAR_BLOCK_SIZE]];
-    
-    free(buffer);
-    free(nameChar);
-    free(unameChar);
-    free(gnameChar);
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 +(void)chunkedWriteDataFromPath:(NSString *)path toFileHandle:(NSFileHandle*) outputFileHandle {
@@ -527,7 +519,6 @@ static const char template_header[] = {
             char buffer[padding];
             memset(&buffer, '\0', padding);
             [outputFileHandle writeData:[NSData dataWithBytes:buffer length:TAR_BLOCK_SIZE*2]];
-            free(buffer);
         }
         offset += chunkSize;
     }
