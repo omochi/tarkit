@@ -313,9 +313,10 @@ static const char template_header[] = {
                 
                 if(size == 0) {
                     [@"" writeToFile:filePath atomically:YES encoding:NSUTF8StringEncoding error:error];
+                } else {
+                    blockCount += (size - 1) / TAR_BLOCK_SIZE + 1; // size/TAR_BLOCK_SIZE rounded up
                 }
                 
-                blockCount += (size - 1) / TAR_BLOCK_SIZE + 1; // size/TAR_BLOCK_SIZE rounded up
                 [self writeFileDataForObject:tarObject atLocation:(location + TAR_BLOCK_SIZE) withLength:size atPath:filePath];
                 
             } else if(type == '5') {
