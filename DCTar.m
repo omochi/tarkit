@@ -312,7 +312,7 @@ static const char template_header[] = {
                 //NSLog(@"file created: %@",name);
                 
                 if(size == 0) {
-                    [@"" writeToFile:filePath atomically:YES encoding:NSUTF8StringEncoding error:error];
+                    [@"" writeToFile:filePath atomically:YES encoding:NSUTF8StringEncoding error:nil];
                 } else {
                     blockCount += (size - 1) / TAR_BLOCK_SIZE + 1; // size/TAR_BLOCK_SIZE rounded up
                 }
