@@ -209,10 +209,11 @@ static const char template_header[] = {
         [@"" writeToFile:path atomically:NO encoding:NSUTF8StringEncoding error:nil];
         NSFileHandle *fileHandle = [NSFileHandle fileHandleForWritingAtPath:path];
         for(NSString *file in [fileManager enumeratorAtPath:tarFilePath]) {
-            BOOL isDir = NO;
-            [fileManager fileExistsAtPath:[tarFilePath stringByAppendingPathComponent:file] isDirectory:&isDir];
-            NSData *tarContent = [self binaryEncodeDataForPath:file inDirectory:tarFilePath isDirectory:isDir];
-            [fileHandle writeData:tarContent];
+            @autoreleasepool {
+                BOOL isDir = NO;
+                [fileManager fileExistsAtPath:[tarFilePath stringByAppendingPathComponent:file] isDirectory:&isDir];
+                [self writeDataForPath:file to:fileHandle inDirectory:tarFilePath isDirectory:isDir];
+            }
         }
         //Append two empty blocks to indicate end
         char block[TAR_BLOCK_SIZE*2];
@@ -421,24 +422,39 @@ static const char template_header[] = {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //tar stuff
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-+ (NSData*)binaryEncodeDataForPath:(NSString *) path inDirectory:(NSString *)basepath  isDirectory:(BOOL) isDirectory{
-    
-    NSMutableData *tarData;
-    char block[TAR_BLOCK_SIZE];
-    
-    if(isDirectory) {
++(void)writeDataForPath:(NSString *)path to:(NSFileHandle *)tarHandle inDirectory:(NSString *)basePath isDirectory:(BOOL)isDirectory {
+    if (isDirectory) {
         path = [path stringByAppendingString:@"/"];
     }
-    //write header
-    [self writeHeader:block forPath:path withBasePath:basepath isDirectory:isDirectory];
-    tarData = [NSMutableData dataWithBytes:block length:TAR_BLOCK_SIZE];
-    
-    //write data
-    if(!isDirectory) {
-        [self writeDataFromPath: [basepath stringByAppendingPathComponent:path] toData:tarData];
+    // write header
+    char blockMemory[TAR_BLOCK_SIZE];
+    [self writeHeader:blockMemory forPath:path withBasePath:basePath isDirectory:isDirectory];
+    NSData * headerBlock = [[NSData alloc] initWithBytes:blockMemory length:TAR_BLOCK_SIZE];
+    [tarHandle writeData:headerBlock];
+    if (isDirectory) {
+        return;
     }
-    return tarData;
+    
+    // write data
+    NSFileHandle * fileHandle = [NSFileHandle fileHandleForReadingAtPath:[basePath stringByAppendingPathComponent:path]];
+    uint64_t fileSize = [fileHandle seekToEndOfFile];
+    [fileHandle seekToFileOffset:0];
+    while (true) {
+        @autoreleasepool {
+            NSData * chunk = [fileHandle readDataOfLength:1000 * 1000];
+            if (chunk.length == 0) {
+                break;
+            }
+            [tarHandle writeData:chunk];
+        }
+    }
+    uint64_t paddingSize = (TAR_BLOCK_SIZE - (fileSize % TAR_BLOCK_SIZE)) % TAR_BLOCK_SIZE;
+    if (paddingSize > 0) {
+        NSData * padding = [[NSMutableData alloc] initWithLength:paddingSize];
+        [tarHandle writeData:padding];
+    }
 }
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 +(void)writeHeader:(char*)buffer forPath:(NSString*)path withBasePath:(NSString*)basePath isDirectory:(BOOL)isDirectory {
     
